@@ -21,30 +21,54 @@ app.get("/login", (req, res) => {
   res.render("login");
 });
 
-app.get("/profile", isLogedIn, async (req, res) => {  //isLogedIn is a middleware that will check if user is loged in or not
+app.get("/profile", isLogedIn, async (req, res) => {
+  //isLogedIn is a middleware that will check if user is loged in or not
 
-  let user = await userModel.findOne({email: req.user.email}).populate("posts"); // finding user in db and populating posts array
+  let user = await userModel
+    .findOne({ email: req.user.email })
+    .populate("posts"); // finding user in db and populating posts array
   // console.log(user);
-  
-  
-  res.render("profile", {user}); // sending user data to profile page
+
+  res.render("profile", { user }); // sending user data to profile page
+});
+app.get("/like/:id", isLogedIn, async (req, res) => {
+  let post = await postModel.findOne({ _id: req.params.id }).populate("user");
+
+  if (post.likes.indexOf(req.user.userid) === -1) {
+    post.likes.push(req.user.userid);
+  } else {
+    post.likes.splice(post.likes.indexOf(req.user.userid), 1); // removing user id from likes array
+  }
+
+  await post.save();
+  res.redirect("/profile");
 });
 
+app.get("/edit/:id", isLogedIn, async (req, res) => {
+  let post = await postModel.findOne({ _id: req.params.id }).populate("user");
+  res.render("edit", { post });
+});
 
-app.post("/post", isLogedIn, async (req, res) => { 
-  let user = await userModel.findOne({email: req.user.email}) // finding user in db
-  let {content} = req.body; // destructring content from req.body
+app.post("/update/:id", isLogedIn, async (req, res) => {
+  let post= await postModel.findOneAndUpdate(
+    {_id: req.params.id}, 
+    { content: req.body.content }
+  ); // finding user in db and updating content
+  res.redirect("/profile");
+});
+
+app.post("/post", isLogedIn, async (req, res) => {
+  let user = await userModel.findOne({ email: req.user.email }); // finding user in db
+  let { content } = req.body; // destructring content from req.body
   let post = await postModel.create({
     user: user._id,
-    content: content
-  })
+    content: content,
+  });
 
   user.posts.push(post._id); // pushing post id in user posts array
   user.save(); // saving user data
   res.redirect("/profile"); // redirecting to profile page
-
 });
-
 
 app.post("/register", async (req, res) => {
   let { email, username, name, age, password } = req.body; // destructring data into variables
@@ -102,7 +126,6 @@ function isLogedIn(req, res, next) {
     req.user = data;
     next();
   }
-
 }
 
 app.listen(3000);
