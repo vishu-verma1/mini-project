@@ -21,10 +21,30 @@ app.get("/login", (req, res) => {
   res.render("login");
 });
 
-app.get("/profile", isLogedIn, (req, res) => {
-  console.log(req.user);
-  res.render("login")
+app.get("/profile", isLogedIn, async (req, res) => {  //isLogedIn is a middleware that will check if user is loged in or not
+
+  let user = await userModel.findOne({email: req.user.email}).populate("posts"); // finding user in db and populating posts array
+  // console.log(user);
+  
+  
+  res.render("profile", {user}); // sending user data to profile page
 });
+
+
+app.post("/post", isLogedIn, async (req, res) => { 
+  let user = await userModel.findOne({email: req.user.email}) // finding user in db
+  let {content} = req.body; // destructring content from req.body
+  let post = await postModel.create({
+    user: user._id,
+    content: content
+  })
+
+  user.posts.push(post._id); // pushing post id in user posts array
+  user.save(); // saving user data
+  res.redirect("/profile"); // redirecting to profile page
+
+});
+
 
 app.post("/register", async (req, res) => {
   let { email, username, name, age, password } = req.body; // destructring data into variables
@@ -65,7 +85,7 @@ app.post("/login", async (req, res) => {
         "secretkey"
       );
       res.cookie("token", token);
-      res.status(200).send("you can login");
+      res.status(200).redirect("/profile");
     } else res.redirect("/login");
   });
 });
@@ -76,7 +96,7 @@ app.get("/logout", (req, res) => {
 });
 
 function isLogedIn(req, res, next) {
-  if (req.cookies.token === "") res.send("You must be logged in");
+  if (req.cookies.token === "") res.redirect("/login");
   else {
     let data = jwt.verify(req.cookies.token, "secretkey");
     req.user = data;
