@@ -5,16 +5,34 @@ const postModel = require("./models/post");
 const cookieParser = require("cookie-parser");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const path = require("path");
+const upload = require("./config/multerconfig");  // importing multer config file
 
 app.set("view engine", "ejs");
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+app.use(express.static(path.join(__dirname, "public"))); // setting public folder as static
 
 app.get("/", (req, res) => {
   // creating index endpoint page (or rout)
   res.render("index");
 });
+
+
+app.get("/profile/upload", (req, res) => {
+  
+  res.render("profileupload");
+});
+
+
+app.post("/upload",isLogedIn, upload.single("image"),async (req, res) => {
+  let user = await userModel.findOne({ email: req.user.email });
+  user.profilePic = req.file.filename;// storing file name in user profilePic
+  await user.save(); // saving user data
+  res.redirect("/profile");
+});
+
 
 app.get("/login", (req, res) => {
   // login rout that will show login ejs page
@@ -50,8 +68,8 @@ app.get("/edit/:id", isLogedIn, async (req, res) => {
 });
 
 app.post("/update/:id", isLogedIn, async (req, res) => {
-  let post= await postModel.findOneAndUpdate(
-    {_id: req.params.id}, 
+  let post = await postModel.findOneAndUpdate(
+    { _id: req.params.id },
     { content: req.body.content }
   ); // finding user in db and updating content
   res.redirect("/profile");
@@ -127,5 +145,6 @@ function isLogedIn(req, res, next) {
     next();
   }
 }
+
 
 app.listen(3000);
